@@ -3,13 +3,16 @@
 import Image from "next/image";
 import { useState, useRef } from "react";
 import { useAuth } from "@/context/AuthContext";
+import { NIGERIAN_UNIVERSITIES } from "@/lib/universities";
 
 export default function Registration({ onGoLogin }: { onGoLogin: () => void }) {
-  const [step, setStep] = useState<1 | 2 | 3>(1);
+  const [step, setStep] = useState(1);
   const [legalModal, setLegalModal] = useState<"NONE" | "TOS" | "PRIVACY">("NONE");
   const [fullName, setFullName] = useState("");
   const [username, setUsername] = useState("");
   const [email, setEmail] = useState("");
+  const [university, setUniversity] = useState("");
+  const [customUniversity, setCustomUniversity] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
@@ -131,6 +134,47 @@ export default function Registration({ onGoLogin }: { onGoLogin: () => void }) {
               <p className="text-xs text-white/40 mt-2">You will need to verify this later.</p>
             </div>
 
+            {/* University / Campus */}
+            <div>
+              <label className="block text-sm font-medium text-white/80 mb-1.5">University / Campus</label>
+              <div className="relative">
+                <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-white/40 pointer-events-none">
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M22 10v6M2 10l10-5 10 5-10 5z"/>
+                    <path d="M6 12v5c3 3 9 3 12 0v-5"/>
+                  </svg>
+                </span>
+                <select
+                  value={university}
+                  onChange={(e) => setUniversity(e.target.value)}
+                  className="w-full bg-transparent border border-white/20 rounded-xl py-3.5 pl-11 pr-8 text-sm text-white focus:outline-none focus:border-cms-yellow transition-colors appearance-none cursor-pointer"
+                >
+                  <option value="" disabled className="text-white/30 bg-[#141416]">Select your university</option>
+                  {NIGERIAN_UNIVERSITIES.map((uni) => (
+                    <option key={uni} value={uni} className="bg-[#141416] text-white">
+                      {uni}
+                    </option>
+                  ))}
+                </select>
+                <span className="absolute right-3.5 top-1/2 -translate-y-1/2 text-white/40 pointer-events-none">
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="m6 9 6 6 6-6"/></svg>
+                </span>
+              </div>
+            </div>
+
+            {university === "Other / Custom Institution" && (
+              <div className="animate-in fade-in duration-200">
+                <label className="block text-sm font-medium text-white/80 mb-1.5">Type Your Institution</label>
+                <input
+                  type="text"
+                  value={customUniversity}
+                  onChange={(e) => setCustomUniversity(e.target.value)}
+                  placeholder="Enter university or polytechnic"
+                  className="w-full bg-transparent border border-white/20 rounded-xl py-3.5 px-4 text-sm placeholder:text-white/30 focus:outline-none focus:border-cms-yellow transition-colors"
+                />
+              </div>
+            )}
+
             {error && <p className="text-red-400 text-xs mt-2">{error}</p>}
 
             <button
@@ -138,6 +182,11 @@ export default function Registration({ onGoLogin }: { onGoLogin: () => void }) {
                 setError("");
                 if (!fullName.trim() || !email.trim() || !username.trim()) {
                   setError("Please fill in all fields.");
+                  return;
+                }
+                const finalUni = university === "Other / Custom Institution" ? customUniversity.trim() : university.trim();
+                if (!finalUni) {
+                  setError("Please select or enter your university/institution.");
                   return;
                 }
                 if (username.length < 3) {
@@ -389,7 +438,8 @@ export default function Registration({ onGoLogin }: { onGoLogin: () => void }) {
                 // Keep the success animation on screen for 2 seconds
                 setTimeout(async () => {
                   try {
-                    await register(email, password, fullName, username);
+                    const finalUni = university === "Other / Custom Institution" ? customUniversity.trim() : university.trim();
+                    await register(email, password, fullName, username, finalUni);
                     // page.tsx will detect the user auth state change and switch to HOME!
                   } catch (err: unknown) {
                     setShowSuccess(false); // Hide success screen if firebase fails

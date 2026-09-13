@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import { useAuth } from "@/context/AuthContext";
 import { db } from "@/lib/firebase";
 import { doc, setDoc, collection, query, where, getDocs } from "firebase/firestore";
+import { NIGERIAN_UNIVERSITIES } from "@/lib/universities";
 
 export default function EditProfilePage() {
   const { user, userData } = useAuth();
@@ -13,6 +14,8 @@ export default function EditProfilePage() {
 
   const [displayName, setDisplayName] = useState("");
   const [username, setUsername] = useState("");
+  const [university, setUniversity] = useState("");
+  const [customUniversity, setCustomUniversity] = useState("");
   const [avatarPreview, setAvatarPreview] = useState("");
   
   const [loading, setLoading] = useState(false);
@@ -26,6 +29,14 @@ export default function EditProfilePage() {
       setDisplayName(userData.displayName || "");
       setUsername(userData.username || "");
       setAvatarPreview(userData.photoURL || "");
+      if (userData.university) {
+        if (NIGERIAN_UNIVERSITIES.includes(userData.university)) {
+          setUniversity(userData.university);
+        } else {
+          setUniversity("Other / Custom Institution");
+          setCustomUniversity(userData.university);
+        }
+      }
     }
   }, [userData]);
 
@@ -94,9 +105,11 @@ export default function EditProfilePage() {
       }
 
       // 2. Update Firestore with base64 avatar directly in the DB
+      const finalUni = university === "Other / Custom Institution" ? customUniversity.trim() : university.trim();
       await setDoc(doc(db, "users", user.uid), {
         displayName: displayName.trim(),
         username: finalUsername,
+        university: finalUni,
         photoURL: avatarPreview,
       }, { merge: true });
 
@@ -176,6 +189,41 @@ export default function EditProfilePage() {
               className="w-full bg-[#111] border border-white/10 rounded-xl px-4 py-3 text-white placeholder:text-white/30 focus:outline-none focus:border-cms-yellow transition-colors"
             />
           </div>
+
+          {/* University Selection */}
+          <div>
+            <label className="text-xs text-white/50 uppercase tracking-wider font-bold mb-2 block">University / Campus</label>
+            <div className="relative">
+              <select
+                value={university}
+                onChange={(e) => setUniversity(e.target.value)}
+                className="w-full bg-[#111] border border-white/10 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-cms-yellow transition-colors appearance-none cursor-pointer"
+              >
+                <option value="" disabled className="text-white/30">Select your university</option>
+                {NIGERIAN_UNIVERSITIES.map((uni) => (
+                  <option key={uni} value={uni} className="bg-[#141416] text-white">
+                    {uni}
+                  </option>
+                ))}
+              </select>
+              <span className="absolute right-3.5 top-1/2 -translate-y-1/2 text-white/40 pointer-events-none">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="m6 9 6 6 6-6"/></svg>
+              </span>
+            </div>
+          </div>
+
+          {university === "Other / Custom Institution" && (
+            <div className="animate-in fade-in duration-200">
+              <label className="text-xs text-white/50 uppercase tracking-wider font-bold mb-2 block">Enter Your Institution</label>
+              <input
+                type="text"
+                value={customUniversity}
+                onChange={(e) => setCustomUniversity(e.target.value)}
+                placeholder="Enter university or polytechnic"
+                className="w-full bg-[#111] border border-white/10 rounded-xl px-4 py-3 text-white placeholder:text-white/30 focus:outline-none focus:border-cms-yellow transition-colors"
+              />
+            </div>
+          )}
         </div>
 
         {error && <p className="text-red-400 text-sm text-center">{error}</p>}

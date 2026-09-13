@@ -138,7 +138,7 @@ export default function Home() {
 
       // If they're already logged in, fast track to HOME (or SETUP_USERNAME) if splash is done (or immediately if onboarded)
       if (user) {
-        if (userData && !userData.username) {
+        if (userData && (!userData.username || !userData.university)) {
           if (hasOnboarded || splashFinished) setViewState("SETUP_USERNAME");
         } else {
           if (hasOnboarded || splashFinished) setViewState("HOME");
@@ -161,7 +161,7 @@ export default function Home() {
 
     // If user is logged in but not on HOME or SETUP, force them
     if (user && viewState !== "HOME" && viewState !== "SETUP_USERNAME") {
-      if (userData && !userData.username) {
+      if (userData && (!userData.username || !userData.university)) {
         setViewState("SETUP_USERNAME");
       } else {
         setViewState("HOME");

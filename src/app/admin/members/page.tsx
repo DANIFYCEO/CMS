@@ -87,6 +87,7 @@ export default function AdminMembersPage() {
       (m.email || "").toLowerCase().includes(q) ||
       (m.cmsId || "").toLowerCase().includes(q) ||
       (m.username || "").toLowerCase().includes(q) ||
+      (m.university || "").toLowerCase().includes(q) ||
       (m.registrationForm?.creativeDepartments || []).some((dept: string) => dept.toLowerCase().includes(q))
     );
 
@@ -208,6 +209,12 @@ export default function AdminMembersPage() {
                             <p className="text-[11px] text-white/40 truncate max-w-[140px] sm:max-w-[180px]">
                               {m.email}
                             </p>
+                            {m.university && (
+                              <p className="text-[10px] text-cms-yellow/90 truncate max-w-[140px] sm:max-w-[180px] flex items-center gap-1 mt-0.5">
+                                <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="shrink-0"><path d="M22 10v6M2 10l10-5 10 5-10 5z"/><path d="M6 12v5c3 3 9 3 12 0v-5"/></svg>
+                                <span>{m.university}</span>
+                              </p>
+                            )}
                           </div>
                         </div>
                       </td>

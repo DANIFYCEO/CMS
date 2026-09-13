@@ -174,6 +174,8 @@ function WatchPageContent() {
     };
   }, [videoId, videoTitle, user?.uid]);
 
+  const pendingPlayRef = useRef(false);
+
   const onPlayerReady: YouTubeProps['onReady'] = (event) => {
     playerRef.current = event.target;
     setDuration(event.target.getDuration());
@@ -182,6 +184,13 @@ function WatchPageContent() {
     const savedTime = localStorage.getItem(`cms_progress_${videoId}`);
     if (savedTime && parseFloat(savedTime) > 0) {
       event.target.seekTo(parseFloat(savedTime), true);
+    }
+
+    if (pendingPlayRef.current) {
+      event.target.playVideo();
+      setIsPlaying(true);
+      setHasStarted(true);
+      pendingPlayRef.current = false;
     }
   };
 
@@ -192,6 +201,8 @@ function WatchPageContent() {
       setHasStarted(true);
     } else if (event.data === 2) {
       setIsPlaying(false);
+    } else if (event.data === 3) {
+      setHasStarted(true);
     }
     
     // Autoplay next video when ended
@@ -225,10 +236,18 @@ function WatchPageContent() {
     if (playerRef.current) {
       if (isPlaying) {
         playerRef.current.pauseVideo();
+        setIsPlaying(false);
       } else {
         playerRef.current.playVideo();
+        setIsPlaying(true);
+        setHasStarted(true);
       }
+    } else {
+      pendingPlayRef.current = true;
+      setIsPlaying(true);
+      setHasStarted(true);
     }
+    resetControlsTimer();
   };
 
   const skip = (seconds: number) => {
@@ -288,7 +307,7 @@ function WatchPageContent() {
     height: '100%',
     width: '100%',
     playerVars: {
-      autoplay: 0,
+      autoplay: 1,
       controls: 0,
       modestbranding: 1,
       rel: 0,
@@ -301,6 +320,10 @@ function WatchPageContent() {
   };
 
   const handleContainerTap = () => {
+    if (!hasStarted) {
+      togglePlay();
+      return;
+    }
     if (showControls && isPlaying) {
       setShowControls(false);
       if (controlsTimerRef.current) clearTimeout(controlsTimerRef.current);
@@ -580,13 +603,34 @@ function WatchPageContent() {
               fill 
               className="object-cover"
             />
-            <div className="absolute inset-0 bg-black/30"></div>
+            <div className="absolute inset-0 bg-black/40"></div>
+          </div>
+        )}
+
+        {/* Big Center Play Button when video hasn't started yet */}
+        {!hasStarted && (
+          <div 
+            onClick={(e) => {
+              e.stopPropagation();
+              togglePlay();
+            }}
+            className="absolute inset-0 z-40 flex items-center justify-center cursor-pointer group"
+          >
+            <button
+              type="button"
+              className="w-20 h-20 rounded-full bg-cms-yellow hover:bg-yellow-400 text-black flex items-center justify-center shadow-2xl group-hover:scale-110 active:scale-95 transition-all"
+              aria-label="Play video"
+            >
+              <svg width="36" height="36" viewBox="0 0 24 24" fill="currentColor" className="ml-1">
+                <polygon points="5 3 19 12 5 21 5 3" />
+              </svg>
+            </button>
           </div>
         )}
 
         {/* ── Custom Overlay Controls ── */}
         <div 
-          className={`absolute inset-0 z-30 flex flex-col justify-between transition-opacity duration-300 ${showControls ? 'opacity-100' : 'opacity-0 pointer-events-none'} ${!hasStarted ? 'pointer-events-none' : ''}`}
+          className={`absolute inset-0 z-30 flex flex-col justify-between transition-opacity duration-300 ${showControls ? 'opacity-100' : 'opacity-0 pointer-events-none'}`}
         >
           {/* Top gradient + fullscreen title */}
           <div className="h-14 bg-gradient-to-b from-black/80 to-transparent flex items-center px-4">

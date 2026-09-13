@@ -20,6 +20,7 @@ export interface UserProfileData {
   email: string;
   displayName: string;
   username: string;
+  university?: string;
   photoURL?: string;
   membership?: string;
   isAdmin?: boolean;
@@ -33,7 +34,7 @@ interface AuthContextType {
   user: User | null;
   userData: UserProfileData | null;
   loading: boolean;
-  register: (email: string, password: string, fullName: string, username: string) => Promise<void>;
+  register: (email: string, password: string, fullName: string, username: string, university?: string) => Promise<void>;
   login: (identifier: string, password: string) => Promise<void>;
   loginWithGoogle: () => Promise<void>;
   logout: () => Promise<void>;
@@ -131,7 +132,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     };
   }, []);
 
-  const register = async (email: string, password: string, fullName: string, username: string) => {
+  const register = async (email: string, password: string, fullName: string, username: string, university?: string) => {
     const cleanUsername = username.trim().toLowerCase();
     
     // Check if username is already taken
@@ -153,6 +154,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       email: cred.user.email || email,
       displayName: fullName,
       username: cleanUsername,
+      university: university?.trim() || "",
       membership: "CMS Member",
     };
 
@@ -219,13 +221,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     if (!userDoc.exists()) {
       const userEmailLower = (cred.user.email || "").toLowerCase().trim();
       const initialConfig = INITIAL_ADMIN_ROLES[userEmailLower];
-      const defaultUsername = cred.user.email ? cred.user.email.split("@")[0].toLowerCase().replace(/[^a-z0-9_]/g, '') : "";
 
       const newProfile: UserProfileData = {
         uid: cred.user.uid,
         email: cred.user.email || "",
         displayName: initialConfig?.name || cred.user.displayName || "CMS Member",
-        username: defaultUsername,
+        username: "",
+        university: "",
         membership: "CMS Member",
         isAdmin: !!initialConfig,
         role: initialConfig ? initialConfig.role : "member",
