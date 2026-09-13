@@ -165,13 +165,26 @@ export default function Registration({ onGoLogin }: { onGoLogin: () => void }) {
               onClick={async () => {
                 try {
                   setIsLoading(true);
+                  setError("");
                   await loginWithGoogle();
                   // No need to redirect manually, page.tsx will handle the state change
                 } catch (err: any) {
                   if (err?.code === 'auth/cancelled-popup-request' || err?.code === 'auth/popup-closed-by-user') {
                     return; // Ignore if user closed popup
                   }
-                  setError("Google sign up failed. Please try again.");
+                  if (err?.code === 'auth/unauthorized-domain') {
+                    setError("Domain not authorized in Firebase Console. Please add this domain to Firebase Console -> Authentication -> Settings -> Authorized Domains.");
+                    return;
+                  }
+                  if (err?.code === 'auth/popup-blocked') {
+                    setError("Popup was blocked by your browser. Please enable popups for this site.");
+                    return;
+                  }
+                  if (err?.code === 'auth/operation-not-allowed') {
+                    setError("Google Sign-In is not enabled in Firebase Console -> Authentication -> Sign-in method.");
+                    return;
+                  }
+                  setError(err?.message || "Google sign up failed. Please try again.");
                 } finally {
                   setIsLoading(false);
                 }
@@ -278,13 +291,14 @@ export default function Registration({ onGoLogin }: { onGoLogin: () => void }) {
                   });
                   
                   if (!res.ok) {
-                    throw new Error("Failed to send verification email");
+                    const data = await res.json().catch(() => ({}));
+                    throw new Error(data.error || "Failed to send verification email");
                   }
                   
                   // Move to the OTP screen (Step 3)
                   setStep(3);
-                } catch (err) {
-                  setError("Failed to send verification email. Please try again.");
+                } catch (err: any) {
+                  setError(err?.message || "Failed to send verification email. Please try again.");
                 } finally {
                   setIsLoading(false);
                 }
@@ -337,15 +351,19 @@ export default function Registration({ onGoLogin }: { onGoLogin: () => void }) {
                   try {
                     const code = Math.floor(1000 + Math.random() * 9000).toString();
                     setExpectedOtp(code);
-                    await fetch('/api/send-otp', {
+                    const res = await fetch('/api/send-otp', {
                       method: 'POST',
                       headers: { 'Content-Type': 'application/json' },
                       body: JSON.stringify({ email, code, fullName })
                     });
+                    if (!res.ok) {
+                      const data = await res.json().catch(() => ({}));
+                      throw new Error(data.error || "Failed to resend code");
+                    }
                     setResendStatus("Code resent!");
                     setTimeout(() => setResendStatus(""), 3000);
-                  } catch (err) {
-                    setResendStatus("Failed to resend");
+                  } catch (err: any) {
+                    setResendStatus(err?.message || "Failed to resend");
                   }
                 }}
               >

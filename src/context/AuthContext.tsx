@@ -203,6 +203,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const loginWithGoogle = async () => {
     const { GoogleAuthProvider, signInWithPopup } = await import("firebase/auth");
     const provider = new GoogleAuthProvider();
+    provider.setCustomParameters({ prompt: 'select_account' });
     
     const cred = await signInWithPopup(auth, provider);
     
@@ -216,12 +217,20 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const userDoc = await getDoc(usersRef);
     
     if (!userDoc.exists()) {
+      const userEmailLower = (cred.user.email || "").toLowerCase().trim();
+      const initialConfig = INITIAL_ADMIN_ROLES[userEmailLower];
+      const defaultUsername = cred.user.email ? cred.user.email.split("@")[0].toLowerCase().replace(/[^a-z0-9_]/g, '') : "";
+
       const newProfile: UserProfileData = {
         uid: cred.user.uid,
         email: cred.user.email || "",
-        displayName: cred.user.displayName || "CMS Member",
-        username: "",
+        displayName: initialConfig?.name || cred.user.displayName || "CMS Member",
+        username: defaultUsername,
         membership: "CMS Member",
+        isAdmin: !!initialConfig,
+        role: initialConfig ? initialConfig.role : "member",
+        adminTitle: initialConfig?.title,
+        cmsId: initialConfig?.cmsId,
       };
       await setDoc(usersRef, { ...newProfile, createdAt: serverTimestamp() });
       setUserData(newProfile);

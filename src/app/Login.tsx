@@ -169,13 +169,26 @@ export default function Login({ onLogin, onGoRegister }: { onLogin: () => void, 
           onClick={async () => {
             try {
               setIsLoading(true);
+              setError("");
               await loginWithGoogle();
               onLogin();
             } catch (err: any) {
               if (err?.code === 'auth/cancelled-popup-request' || err?.code === 'auth/popup-closed-by-user') {
-                return; // User just closed the popup, no need to show an error
+                return; // User closed the popup
               }
-              setError("Google sign in failed. Please try again.");
+              if (err?.code === 'auth/unauthorized-domain') {
+                setError("Domain not authorized in Firebase Console. Please add this domain to Firebase Console -> Authentication -> Settings -> Authorized Domains.");
+                return;
+              }
+              if (err?.code === 'auth/popup-blocked') {
+                setError("Popup was blocked by your browser. Please enable popups for this site.");
+                return;
+              }
+              if (err?.code === 'auth/operation-not-allowed') {
+                setError("Google Sign-In is not enabled in Firebase Console -> Authentication -> Sign-in method.");
+                return;
+              }
+              setError(err?.message || "Google sign in failed. Please try again.");
             } finally {
               setIsLoading(false);
             }
