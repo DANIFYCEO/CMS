@@ -3,7 +3,7 @@ import nodemailer from "nodemailer";
 
 export async function POST(req: Request) {
   try {
-    const { email, code, fullName } = await req.json();
+    const { email, code, fullName, university } = await req.json();
 
     if (!email || !code) {
       return NextResponse.json({ error: "Email and code are required" }, { status: 400 });
@@ -37,6 +37,7 @@ export async function POST(req: Request) {
           
           <div style="padding: 35px 25px;">
             <p style="font-size: 16px; color: #eee; margin-top: 0;">Hi ${fullName || 'Creative'},</p>
+            ${university ? `<p style="font-size: 13px; color: #FFB400; margin: -5px 0 15px 0; font-weight: 600;">Campus: ${university}</p>` : ''}
             <p style="font-size: 14px; color: #ccc; line-height: 1.6;">
               Welcome to Campus Movie Series! Use the following 4-digit verification code to complete your registration.
             </p>

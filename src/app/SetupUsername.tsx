@@ -5,7 +5,7 @@ import Image from "next/image";
 import { useAuth } from "@/context/AuthContext";
 import { db } from "@/lib/firebase";
 import { doc, updateDoc, collection, query, where, getDocs } from "firebase/firestore";
-import { NIGERIAN_UNIVERSITIES } from "@/lib/universities";
+import UniversitySelect from "@/components/UniversitySelect";
 
 export default function SetupUsername({ onComplete }: { onComplete: () => void }) {
   const { user, userData } = useAuth();
@@ -108,53 +108,14 @@ export default function SetupUsername({ onComplete }: { onComplete: () => void }
             <p className="text-[11px] text-white/40 mt-1">At least 3 letters, numbers, or underscores.</p>
           </div>
 
-          {/* University Selection */}
-          <div>
-            <label className="block text-xs font-semibold text-white/80 mb-1.5 uppercase tracking-wider">
-              Select University / Campus
-            </label>
-            <div className="relative">
-              <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-white/40 pointer-events-none">
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                  <path d="M22 10v6M2 10l10-5 10 5-10 5z"/>
-                  <path d="M6 12v5c3 3 9 3 12 0v-5"/>
-                </svg>
-              </span>
-              <select
-                value={selectedUni}
-                onChange={(e) => setSelectedUni(e.target.value)}
-                required
-                className="w-full bg-black border border-white/15 rounded-xl pl-11 pr-8 py-3.5 text-sm text-white focus:outline-none focus:border-cms-yellow transition-colors appearance-none cursor-pointer"
-              >
-                <option value="" disabled className="text-white/30">Select your university</option>
-                {NIGERIAN_UNIVERSITIES.map((uni) => (
-                  <option key={uni} value={uni} className="bg-[#141416] text-white">
-                    {uni}
-                  </option>
-                ))}
-              </select>
-              <span className="absolute right-3.5 top-1/2 -translate-y-1/2 text-white/40 pointer-events-none">
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="m6 9 6 6 6-6"/></svg>
-              </span>
-            </div>
-          </div>
-
-          {/* Custom University Input if "Other" is chosen */}
-          {isCustomUni && (
-            <div className="animate-in fade-in duration-200">
-              <label className="block text-xs font-semibold text-white/80 mb-1.5 uppercase tracking-wider">
-                Type Your Institution Name
-              </label>
-              <input
-                type="text"
-                value={customUni}
-                onChange={(e) => setCustomUni(e.target.value)}
-                placeholder="Enter university or polytechnic"
-                required
-                className="w-full bg-black border border-white/15 rounded-xl px-4 py-3.5 text-sm text-white placeholder:text-white/30 focus:outline-none focus:border-cms-yellow transition-colors"
-              />
-            </div>
-          )}
+          {/* University Selection with Instant Search */}
+          <UniversitySelect
+            value={selectedUni}
+            onChange={setSelectedUni}
+            customValue={customUni}
+            onCustomChange={setCustomUni}
+            required={true}
+          />
 
           {error && <p className="text-red-400 text-xs text-center mt-1">{error}</p>}
           
