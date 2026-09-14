@@ -82,17 +82,49 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           if (userDoc.exists()) {
             const data = userDoc.data() as UserProfileData;
             
-            // Check if user is one of the designated initial leadership accounts and needs provisioning
-            if (initialConfig && (data.role !== initialConfig.role || data.isAdmin !== true || (initialConfig.cmsId && !data.cmsId))) {
-              setDoc(doc(db, "users", currentUser.uid), {
-                isAdmin: true,
-                role: initialConfig.role,
-                adminTitle: initialConfig.title,
-                ...(initialConfig.cmsId && !data.cmsId ? { cmsId: initialConfig.cmsId } : {})
-              }, { merge: true }).catch(console.error);
+            // Check if user is one of the designated initial leadership accounts or promoted admin and needs provisioning
+            let needsUpdate = false;
+            const updatePayload: any = {};
+
+            if (initialConfig) {
+              if (data.role !== initialConfig.role) {
+                data.role = initialConfig.role;
+                updatePayload.role = initialConfig.role;
+                needsUpdate = true;
+              }
+              if (data.isAdmin !== true) {
+                data.isAdmin = true;
+                updatePayload.isAdmin = true;
+                needsUpdate = true;
+              }
+              if (initialConfig.title && data.adminTitle !== initialConfig.title) {
+                data.adminTitle = initialConfig.title;
+                updatePayload.adminTitle = initialConfig.title;
+                needsUpdate = true;
+              }
+              if (initialConfig.cmsId && data.cmsId !== initialConfig.cmsId) {
+                data.cmsId = initialConfig.cmsId;
+                updatePayload.cmsId = initialConfig.cmsId;
+                needsUpdate = true;
+              }
+              if (data.membership !== "elite-member") {
+                data.membership = "elite-member";
+                updatePayload.membership = "elite-member";
+                needsUpdate = true;
+              }
+            } else if (data.isAdmin || (data.role && data.role !== "member")) {
+              if (!data.membership || data.membership === "free" || data.membership === "CMS Member") {
+                data.membership = "elite-member";
+                updatePayload.membership = "elite-member";
+                needsUpdate = true;
+              }
             }
 
-            setUserData(data);
+            if (needsUpdate) {
+              setDoc(doc(db, "users", currentUser.uid), updatePayload, { merge: true }).catch(console.error);
+            }
+
+            setUserData({ ...data });
           } else {
             const newUserData: UserProfileData = {
               uid: currentUser.uid,
@@ -103,6 +135,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
               role: initialConfig ? initialConfig.role : "member",
               adminTitle: initialConfig?.title,
               cmsId: initialConfig?.cmsId,
+              membership: initialConfig ? "elite-member" : "cms-member",
             };
             
             setDoc(doc(db, "users", currentUser.uid), {
@@ -149,13 +182,20 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     // Set display name in auth
     await updateProfile(cred.user, { displayName: fullName });
 
+    const userEmailLower = email.toLowerCase().trim();
+    const initialConfig = INITIAL_ADMIN_ROLES[userEmailLower];
+
     const newProfile: UserProfileData = {
       uid: cred.user.uid,
       email: cred.user.email || email,
-      displayName: fullName,
+      displayName: initialConfig?.name || fullName,
       username: cleanUsername,
       university: university?.trim() || "",
-      membership: "CMS Member",
+      membership: initialConfig ? "elite-member" : "cms-member",
+      isAdmin: !!initialConfig,
+      role: initialConfig ? initialConfig.role : "member",
+      adminTitle: initialConfig?.title,
+      cmsId: initialConfig?.cmsId,
     };
 
     // Create user document in Firestore
@@ -228,7 +268,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         displayName: initialConfig?.name || cred.user.displayName || "CMS Member",
         username: "",
         university: "",
-        membership: "CMS Member",
+        membership: initialConfig ? "elite-member" : "cms-member",
         isAdmin: !!initialConfig,
         role: initialConfig ? initialConfig.role : "member",
         adminTitle: initialConfig?.title,

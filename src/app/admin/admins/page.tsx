@@ -139,6 +139,7 @@ export default function AdminTeamPage() {
         isAdmin: true,
         role: selectedRole,
         adminTitle: finalTitle,
+        membership: "elite-member",
         adminAssignedAt: new Date(),
         adminAssignedBy: user?.email || "Super Admin"
       });
@@ -174,6 +175,7 @@ export default function AdminTeamPage() {
         isAdmin: false,
         role: "member",
         adminTitle: null,
+        membership: "cms-member",
         adminRevokedAt: new Date(),
         adminRevokedBy: user?.email || "Super Admin"
       });

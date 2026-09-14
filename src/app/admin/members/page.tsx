@@ -97,7 +97,8 @@ export default function AdminMembersPage() {
     return matchesQuery && matchesTier;
   });
 
-  const getTierBadge = (tier?: string) => {
+  const getTierBadge = (tier?: string, role?: string, isAdmin?: boolean) => {
+    if (isAdmin || (role && role !== "member")) return <span className="bg-amber-500/20 text-amber-300 border border-amber-500/30 px-2 py-0.5 rounded-full text-[9px] font-bold uppercase">Executive</span>;
     if (tier === "elite-member") return <span className="bg-purple-500/20 text-purple-300 border border-purple-500/30 px-2 py-0.5 rounded-full text-[9px] font-bold uppercase">Elite</span>;
     if (tier === "premium-member") return <span className="bg-blue-500/20 text-blue-300 border border-blue-500/30 px-2 py-0.5 rounded-full text-[9px] font-bold uppercase">Premium</span>;
     if (tier === "cms-member" || tier === "CMS Member") return <span className="bg-cms-yellow/20 text-cms-yellow border border-cms-yellow/30 px-2 py-0.5 rounded-full text-[9px] font-bold uppercase">Member</span>;
@@ -226,7 +227,7 @@ export default function AdminMembersPage() {
 
                       {/* Membership Tier */}
                       <td className="py-3 px-4">
-                        {getTierBadge(m.membership)}
+                        {getTierBadge(m.membership, m.role, m.isAdmin)}
                       </td>
 
                       {/* Creative Departments */}
@@ -328,7 +329,7 @@ export default function AdminMembersPage() {
                 <h4 className="font-bold text-base text-white">{selectedMember.displayName || "CMS Member"}</h4>
                 <p className="text-xs text-white/50">{selectedMember.email}</p>
                 <div className="flex items-center gap-2 mt-1">
-                  {getTierBadge(selectedMember.membership)}
+                  {getTierBadge(selectedMember.membership, selectedMember.role, selectedMember.isAdmin)}
                   {selectedMember.cmsId && (
                     <span className="text-xs font-mono font-bold text-cms-yellow bg-cms-yellow/10 px-2 py-0.5 rounded-full border border-cms-yellow/20">
                       {selectedMember.cmsId}

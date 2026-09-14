@@ -8,6 +8,7 @@ import BottomNav from "@/components/BottomNav";
 import { 
   normalizeAdminRole, 
   ADMIN_ROLES_META, 
+  INITIAL_ADMIN_ROLES,
   canManageAdmins, 
   canManagePayments, 
   canManageMembers, 
@@ -21,13 +22,20 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
   const router = useRouter();
   const pathname = usePathname();
 
-  const currentRole = useMemo(() => {
-    return normalizeAdminRole(userData?.role, userData?.isAdmin);
-  }, [userData]);
+  const userEmailLower = (user?.email || "").toLowerCase().trim();
+  const initialAdminConfig = INITIAL_ADMIN_ROLES[userEmailLower];
 
-  const isAuthorizedAdmin = currentRole !== "member" || userData?.isAdmin === true;
+  const currentRole = useMemo(() => {
+    const role = normalizeAdminRole(userData?.role, userData?.isAdmin);
+    if (role === "member" && initialAdminConfig) {
+      return initialAdminConfig.role;
+    }
+    return role;
+  }, [userData, initialAdminConfig]);
+
+  const isAuthorizedAdmin = currentRole !== "member" || userData?.isAdmin === true || !!initialAdminConfig;
   const roleMeta = ADMIN_ROLES_META[currentRole] || ADMIN_ROLES_META.super_admin;
-  const displayTitle = userData?.adminTitle || roleMeta.title;
+  const displayTitle = userData?.adminTitle || initialAdminConfig?.title || roleMeta.title;
 
   const tabs = useMemo(() => [
     { 

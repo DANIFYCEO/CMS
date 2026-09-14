@@ -7,7 +7,7 @@ import { useAuth } from "@/context/AuthContext";
 import { useState, useRef, useEffect } from "react";
 import { collection, query, where, getDocs } from "firebase/firestore";
 import { db } from "@/lib/firebase";
-import { normalizeAdminRole, ADMIN_ROLES_META } from "@/lib/adminRoles";
+import { normalizeAdminRole, ADMIN_ROLES_META, INITIAL_ADMIN_ROLES } from "@/lib/adminRoles";
 
 export default function ProfilePage() {
   const { user, userData, logout } = useAuth();
@@ -19,9 +19,13 @@ export default function ProfilePage() {
   
   const [paymentStatus, setPaymentStatus] = useState<string | null>(null);
 
+  const emailLower = (user?.email || "").toLowerCase().trim();
+  const initialAdminConfig = INITIAL_ADMIN_ROLES[emailLower];
+
   const currentRole = normalizeAdminRole(userData?.role, userData?.isAdmin);
-  const isExecutive = currentRole !== "member" || userData?.isAdmin === true;
-  const roleMeta = ADMIN_ROLES_META[currentRole];
+  const effectiveRole = currentRole !== "member" ? currentRole : (initialAdminConfig?.role || "member");
+  const isExecutive = effectiveRole !== "member" || userData?.isAdmin === true || !!initialAdminConfig;
+  const roleMeta = ADMIN_ROLES_META[effectiveRole] || ADMIN_ROLES_META.super_admin;
 
   useEffect(() => {
     if (!user) return;
@@ -61,7 +65,7 @@ export default function ProfilePage() {
 
   const menuItems = [
     ...(isExecutive ? [{
-      label: `Admin Portal (${userData?.adminTitle || roleMeta.shortTitle})`,
+      label: `Admin Portal (${userData?.adminTitle || initialAdminConfig?.title || roleMeta.shortTitle})`,
       href: "/admin",
       iconPath: "M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z",
       isHighlight: true
@@ -73,12 +77,25 @@ export default function ProfilePage() {
     { label: "Settings", href: "/settings", iconPath: "M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2zM12 15a3 3 0 1 0 0-6 3 3 0 0 0 0 6z" },
   ];
 
-  const displayName = userData?.displayName || user?.displayName || "CMS User";
+  const displayName = userData?.displayName || user?.displayName || initialAdminConfig?.name || "CMS User";
   const photoUrl = userData?.photoURL || null;
   const membershipId = userData?.membership || "free";
   
   const getMembershipDetails = () => {
-    switch (membershipId) {
+    if (isExecutive) {
+      return {
+        label: userData?.adminTitle || initialAdminConfig?.title || roleMeta.title || "Elite Member",
+        icon: (
+          <>
+            <path d="M6 3h12l4 6-10 13L2 9Z" />
+            <path d="M11 3 8 9l4 13 4-13-3-6" />
+            <path d="M2 9h20" />
+          </>
+        )
+      };
+    }
+    const cleanMem = (membershipId || "").toLowerCase().replace(/\s+/g, "-");
+    switch (cleanMem) {
       case "cms-member": return { label: "CMS Member", icon: <><path d="M2 4h20M2 20h20M9 4v16M15 4v16"/><path d="M2 16l4-12 6 8 6-8 4 12z"/></> };
       case "premium-member": return { label: "Premium Member", icon: <><circle cx="12" cy="8" r="7"/><polyline points="8.21 13.89 7 23 12 20 17 23 15.79 13.88"/></> };
       case "elite-member": return { label: "Elite Member", icon: <><path d="M6 3h12l4 6-10 13L2 9Z"/><path d="M11 3 8 9l4 13 4-13-3-6"/><path d="M2 9h20"/></> };
@@ -140,6 +157,11 @@ export default function ProfilePage() {
             <div className="border border-cms-yellow px-3 py-1 rounded-full text-cms-yellow text-[11px] font-bold">
               {membership.label}
             </div>
+            {(userData?.cmsId || initialAdminConfig?.cmsId) && (
+              <div className="border border-white/20 bg-white/5 px-2.5 py-1 rounded-full text-white/70 font-mono text-[10px] tracking-wider">
+                {userData?.cmsId || initialAdminConfig?.cmsId}
+              </div>
+            )}
             {paymentStatus && (
               <div className={`px-3 py-1 rounded-full text-[11px] font-bold border ${paymentStatus === 'approved' ? 'border-green-400 text-green-400' : paymentStatus === 'rejected' ? 'border-red-400 text-red-400' : 'border-cms-yellow/50 text-cms-yellow/80'}`}>
                 Payment: {paymentStatus.toUpperCase()}

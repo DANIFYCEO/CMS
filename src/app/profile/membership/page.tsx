@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { useAuth } from "@/context/AuthContext";
 import { doc, updateDoc, collection, query, where, getDocs } from "firebase/firestore";
 import { db } from "@/lib/firebase";
+import { INITIAL_ADMIN_ROLES } from "@/lib/adminRoles";
 import Link from "next/link";
 
 export default function MembershipDashboardPage() {
@@ -16,7 +17,10 @@ export default function MembershipDashboardPage() {
   const [error, setError] = useState("");
   const [migratedId, setMigratedId] = useState<string | null>(null);
 
-  const hasMembership = userData?.membership && userData.membership !== "free";
+  const emailLower = (user?.email || "").toLowerCase().trim();
+  const initialAdminConfig = INITIAL_ADMIN_ROLES[emailLower];
+  const isExecutive = userData?.isAdmin === true || (userData?.role && userData?.role !== "member") || !!initialAdminConfig;
+  const hasMembership = isExecutive || (userData?.membership && userData.membership !== "free");
 
   const handleVerify = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -145,24 +149,28 @@ export default function MembershipDashboardPage() {
           <div className="flex flex-col items-center justify-center py-20 px-4 text-center">
             <div className="w-24 h-24 rounded-full bg-cms-yellow/10 flex items-center justify-center text-cms-yellow mb-6">
               <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-                {userData.membership === "elite-member" ? (
+                {userData?.membership === "elite-member" || isExecutive ? (
                   <><path d="M6 3h12l4 6-10 13L2 9Z"/><path d="M11 3 8 9l4 13 4-13-3-6"/><path d="M2 9h20"/></>
-                ) : userData.membership === "premium-member" ? (
+                ) : userData?.membership === "premium-member" ? (
                   <><circle cx="12" cy="8" r="7"/><polyline points="8.21 13.89 7 23 12 20 17 23 15.79 13.88"/></>
                 ) : (
                   <><path d="M2 4h20M2 20h20M9 4v16M15 4v16"/><path d="M2 16l4-12 6 8 6-8 4 12z"/></>
                 )}
               </svg>
             </div>
-            <h2 className="text-2xl font-bold mb-2">Active Member</h2>
-            <p className="text-white/60 mb-6 max-w-xs mx-auto">Your membership is currently active. Enjoy your exclusive CMS benefits!</p>
+            <h2 className="text-2xl font-bold mb-2">
+              {isExecutive ? (userData?.adminTitle || initialAdminConfig?.title || "Executive Leadership") : "Active Member"}
+            </h2>
+            <p className="text-white/60 mb-6 max-w-xs mx-auto">
+              {isExecutive ? "Full executive leadership privileges and highest CMS tier access." : "Your membership is currently active. Enjoy your exclusive CMS benefits!"}
+            </p>
             <div className="px-4 py-2 border border-cms-yellow text-cms-yellow rounded-full font-bold uppercase text-xs tracking-wider mb-6">
-              {userData.membership?.replace("-", " ") || "Member"}
+              {userData?.adminTitle || initialAdminConfig?.title || (isExecutive ? "Elite Member" : (userData?.membership?.replace("-", " ") || "Member"))}
             </div>
-            {userData.cmsId && (
+            {(userData?.cmsId || initialAdminConfig?.cmsId) && (
               <div className="bg-[#111] border border-white/10 px-4 py-3 rounded-lg flex items-center gap-3">
                 <span className="text-white/40 text-xs uppercase font-bold">CMS ID</span>
-                <span className="font-mono text-sm tracking-widest">{userData.cmsId}</span>
+                <span className="font-mono text-sm tracking-widest">{userData?.cmsId || initialAdminConfig?.cmsId}</span>
               </div>
             )}
           </div>
