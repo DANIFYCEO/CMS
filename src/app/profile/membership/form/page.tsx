@@ -1,6 +1,6 @@
-﻿"use client";
+"use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/context/AuthContext";
 import { doc, updateDoc } from "firebase/firestore";
@@ -29,6 +29,16 @@ export default function MembershipFormPage() {
     institution: "",
     reasonToJoin: ""
   });
+
+  useEffect(() => {
+    if (userData?.registrationForm) {
+      setFormData(prev => ({
+        ...prev,
+        ...userData.registrationForm,
+        creativeDepartments: userData.registrationForm.creativeDepartments || []
+      }));
+    }
+  }, [userData]);
 
   const departmentsList = [
     "Director", "Actress", "Actor", 
@@ -121,18 +131,42 @@ export default function MembershipFormPage() {
             <div className="mb-5">
               <label className="text-xs text-white/50 mb-3 block font-bold">CREATIVE DEPARTMENT(S) (Tick all that apply)</label>
               <div className="grid grid-cols-2 gap-3">
-                {departmentsList.map(dept => (
-                  <label key={dept} className={`border rounded-lg p-3 flex items-start gap-2 cursor-pointer transition-colors ${
-                    formData.creativeDepartments.includes(dept) ? "border-cms-yellow bg-cms-yellow/5" : "border-white/10"
-                  }`}>
-                    <div className={`mt-0.5 w-4 h-4 rounded border flex items-center justify-center shrink-0 ${
-                      formData.creativeDepartments.includes(dept) ? "border-cms-yellow bg-cms-yellow" : "border-white/30"
-                    }`}>
-                      {formData.creativeDepartments.includes(dept) && <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="black" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg>}
+                {departmentsList.map(dept => {
+                  const isChecked = formData.creativeDepartments.includes(dept);
+                  return (
+                    <div 
+                      key={dept} 
+                      onClick={() => handleDeptToggle(dept)}
+                      role="checkbox"
+                      aria-checked={isChecked}
+                      tabIndex={0}
+                      onKeyDown={(e) => {
+                        if (e.key === ' ' || e.key === 'Enter') {
+                          e.preventDefault();
+                          handleDeptToggle(dept);
+                        }
+                      }}
+                      className={`border rounded-xl p-3 flex items-start gap-2.5 cursor-pointer select-none transition-all active:scale-[0.98] ${
+                        isChecked 
+                          ? "border-cms-yellow bg-cms-yellow/15 shadow-sm shadow-cms-yellow/10" 
+                          : "border-white/10 hover:border-white/20 bg-white/[0.02]"
+                      }`}
+                    >
+                      <div className={`mt-0.5 w-4 h-4 rounded border flex items-center justify-center shrink-0 transition-colors ${
+                        isChecked ? "border-cms-yellow bg-cms-yellow" : "border-white/30 bg-black/40"
+                      }`}>
+                        {isChecked && (
+                          <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="black" strokeWidth="3.5" strokeLinecap="round" strokeLinejoin="round">
+                            <polyline points="20 6 9 17 4 12"/>
+                          </svg>
+                        )}
+                      </div>
+                      <span className={`text-xs font-medium leading-tight ${isChecked ? "text-cms-yellow font-bold" : "text-white/80"}`}>
+                        {dept}
+                      </span>
                     </div>
-                    <span className="text-xs font-medium leading-tight">{dept}</span>
-                  </label>
-                ))}
+                  );
+                })}
               </div>
             </div>
 

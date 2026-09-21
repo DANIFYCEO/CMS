@@ -1,6 +1,7 @@
-﻿import type { Metadata, Viewport } from "next";
+import type { Metadata, Viewport } from "next";
 import "./globals.css";
 import { AuthProvider } from "@/context/AuthContext";
+import YouTubeAutoSync from "@/components/YouTubeAutoSync";
 
 export const viewport: Viewport = {
   width: "device-width",
@@ -31,6 +32,7 @@ export default function RootLayout({
     <html lang="en">
       <body className="font-sans antialiased bg-black text-white">
         <AuthProvider>
+          <YouTubeAutoSync />
           <div className="max-w-[430px] mx-auto min-h-[100dvh] relative bg-black">
             {children}
           </div>

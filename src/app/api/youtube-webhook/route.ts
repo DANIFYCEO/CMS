@@ -62,19 +62,24 @@ export async function POST(request: NextRequest) {
           }
         }
 
-        // Save to Firestore under the 'videos' collection (or whichever schema is used)
-        await adminDb.collection("videos").doc(vId).set({
-          videoId: vId,
-          title,
-          category,
-          publishedAt: published,
-          createdAt: new Date().toISOString(),
-          // Defaulting views/likes to 0, these can be updated later if needed
-          likes: "0",
-          comments: "0"
-        }, { merge: true });
+        if (category === "shorts") {
+          console.log(`Skipped YouTube Short from 'videos' collection: ${vId} ("${title}")`);
+          // Ensure it is not in the videos collection
+          await adminDb.collection("videos").doc(vId).delete().catch(() => {});
+        } else {
+          // Save to Firestore under the 'videos' collection
+          await adminDb.collection("videos").doc(vId).set({
+            videoId: vId,
+            title,
+            category,
+            publishedAt: published,
+            createdAt: new Date().toISOString(),
+            likes: "0",
+            comments: "0"
+          }, { merge: true });
 
-        console.log(`Saved new YouTube video ${vId} in category: ${category}`);
+          console.log(`Saved new YouTube channel video ${vId} in category: ${category}`);
+        }
       }
     }
     

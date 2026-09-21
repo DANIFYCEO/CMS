@@ -2,52 +2,43 @@ import { NextRequest, NextResponse } from "next/server";
 import { adminDb } from "@/lib/firebaseAdmin";
 
 const YOUTUBE_API_KEY = process.env.YOUTUBE_API_KEY;
-const CHANNEL_ID = process.env.YOUTUBE_CHANNEL_ID;
+const CHANNEL_ID = process.env.YOUTUBE_CHANNEL_ID || "UC8G09Lmm_c-Qwt7WK-7NjpA";
 
-interface YouTubeVideo {
-  id: { videoId?: string; kind: string };
-  snippet: {
-    title: string;
-    publishedAt: string;
-    description: string;
-  };
+async function fetchTabVideoIds(tab: "videos" | "shorts"): Promise<string[]> {
+  const url = `https://www.youtube.com/channel/${CHANNEL_ID}/${tab}`;
+  try {
+    const res = await fetch(url, {
+      headers: {
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+        'Accept-Language': 'en-US,en;q=0.9'
+      },
+      next: { revalidate: 0 }
+    });
+    const html = await res.text();
+    const matches = [...html.matchAll(/"videoId":"([a-zA-Z0-9_-]{11})"/g)].map(m => m[1]);
+    return [...new Set(matches)];
+  } catch (err) {
+    console.error(`Failed to fetch channel ${tab}:`, err);
+    return [];
+  }
 }
 
-async function categorizeVideo(videoId: string, title: string): Promise<string> {
-  const titleLower = title.toLowerCase();
-
-  // Check if it's a YouTube Short using the Data API duration
-  let isShort = false;
-  try {
-    const key = process.env.YOUTUBE_API_KEY;
-    const res = await fetch(`https://www.googleapis.com/youtube/v3/videos?part=contentDetails&id=${videoId}&key=${key}`);
-    const ytData = await res.json();
-    if (ytData.items && ytData.items.length > 0) {
-      const duration = ytData.items[0].contentDetails.duration;
-      // Shorts are typically under 61 seconds (e.g. PT1M or PT59S)
-      if ((duration.includes("PT") && !duration.includes("M") && !duration.includes("H")) || duration.match(/PT1M0?[0-9]S/) || duration === "PT1M") {
-        isShort = true;
-      }
-    }
-  } catch (err) {
-    console.error(`Failed to get duration for ${videoId}`, err);
+function categorizeVideo(title: string): string {
+  const t = (title || "").toLowerCase();
+  if (t.includes("trailer") || t.includes("teaser") || t.includes("loading") || t.includes("thriller")) {
+    return "trailers";
   }
-
-  if (isShort) return "shorts";
-
-  // Keyword-based categorization for long-form videos
-  if (titleLower.includes("trailer")) return "trailers";
-  if (titleLower.includes("bts") || titleLower.includes("behind the scene")) return "bts";
-  if (titleLower.includes("music")) return "music";
-  if (titleLower.includes("post")) return "posts";
-
-  // Default: movies
+  if (t.includes("bts") || t.includes("behind the scene")) {
+    return "bts";
+  }
+  if (t.includes("music") || t.includes("soundtrack")) {
+    return "music";
+  }
   return "movies";
 }
 
 export async function GET(request: NextRequest) {
-
-  // Optional: protect with a secret query param
+  // Optional key check
   const authHeader = request.nextUrl.searchParams.get("key");
   if (authHeader && authHeader !== process.env.YOUTUBE_API_KEY) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
@@ -61,77 +52,91 @@ export async function GET(request: NextRequest) {
   }
 
   try {
-    // Fetch latest 15 videos from the channel
-    const url = `https://www.googleapis.com/youtube/v3/search?part=snippet&channelId=${CHANNEL_ID}&maxResults=15&order=date&type=video&key=${YOUTUBE_API_KEY}`;
-    const res = await fetch(url, { cache: "no-store" });
+    const [channelVideosTabIds, channelShortsTabIds] = await Promise.all([
+      fetchTabVideoIds("videos"),
+      fetchTabVideoIds("shorts")
+    ]);
 
-    if (!res.ok) {
-      const errorText = await res.text();
-      console.error("YouTube API error:", errorText);
-      return NextResponse.json(
-        { error: "YouTube API request failed", details: errorText },
-        { status: res.status }
-      );
+    // 1. Remove any shorts from the 'videos' collection
+    let removedShortsCount = 0;
+    const videosSnap = await adminDb.collection("videos").get();
+
+    for (const doc of videosSnap.docs) {
+      const data = doc.data();
+      const vId = doc.id;
+      const isShort = channelShortsTabIds.includes(vId) || data.category === "shorts";
+
+      if (isShort) {
+        console.log(`[SYNC] Removing Short from 'videos' collection: ${vId}`);
+        await doc.ref.delete();
+        removedShortsCount++;
+      }
     }
 
-    const data = await res.json();
-    const videos: YouTubeVideo[] = data.items || [];
-
+    // 2. Fetch video metadata from YouTube Data API for all videos in the channel's Videos section
     let newCount = 0;
     let updatedCount = 0;
 
-    for (const video of videos) {
-      const videoId = video.id.videoId;
-      const title = video.snippet.title;
-      const publishedAt = video.snippet.publishedAt;
+    if (channelVideosTabIds.length > 0) {
+      const idsParam = channelVideosTabIds.join(",");
+      const ytUrl = `https://www.googleapis.com/youtube/v3/videos?part=snippet,statistics&id=${idsParam}&key=${YOUTUBE_API_KEY}`;
+      const ytRes = await fetch(ytUrl, { cache: "no-store" });
 
-      if (!videoId || !title) continue;
+      if (ytRes.ok) {
+        const ytData = await ytRes.json();
+        const items = ytData.items || [];
 
-      const docRef = adminDb.collection("videos").doc(videoId);
-      const existingDoc = await docRef.get();
+        for (const item of items) {
+          const vId = item.id;
+          const title = item.snippet.title;
+          const publishedAt = item.snippet.publishedAt;
+          const cat = categorizeVideo(title);
+          const thumbnail = item.snippet.thumbnails?.high?.url || item.snippet.thumbnails?.default?.url || `https://i.ytimg.com/vi/${vId}/hqdefault.jpg`;
+          const views = parseInt(item.statistics?.viewCount || "0", 10) || 0;
+          const likes = (item.statistics?.likeCount || "0").toString();
+          const comments = (item.statistics?.commentCount || "0").toString();
 
-      if (!existingDoc.exists) {
-        // New video - categorize and save
-        const category = await categorizeVideo(videoId, title);
+          const docRef = adminDb.collection("videos").doc(vId);
+          const existing = await docRef.get();
 
-        if (category === "shorts") {
-          console.log(`[SYNC] Skipped short: ${videoId}: ${title}`);
-          continue;
-        }
-
-        await adminDb.collection("videos").doc(videoId).set({
-          videoId,
-          title,
-          category,
-          publishedAt,
-          createdAt: new Date().toISOString(),
-          likes: "0",
-          comments: "0",
-        });
-
-        console.log(`[SYNC] New video: ${videoId} => ${category}: ${title}`);
-        newCount++;
-      } else {
-        // Already exists - optionally update title if it changed
-        const existingData = existingDoc.data();
-        if (existingData && existingData.title !== title) {
-          await adminDb.collection("videos").doc(videoId).update({ title });
-          updatedCount++;
+          if (!existing.exists) {
+            await docRef.set({
+              videoId: vId,
+              title,
+              category: cat,
+              publishedAt,
+              createdAt: new Date().toISOString(),
+              thumbnailUrl: thumbnail,
+              views,
+              likes,
+              comments
+            });
+            newCount++;
+            console.log(`[SYNC] Added channel video: ${vId} => ${cat}: ${title}`);
+          } else {
+            await docRef.update({
+              title,
+              category: cat,
+              thumbnailUrl: thumbnail
+            });
+            updatedCount++;
+          }
         }
       }
     }
 
     return NextResponse.json({
       success: true,
-      message: `Synced ${videos.length} videos. ${newCount} new, ${updatedCount} updated.`,
-      totalFetched: videos.length,
+      message: `Sync complete. ${channelVideosTabIds.length} channel videos active. ${newCount} added, ${updatedCount} updated, ${removedShortsCount} shorts removed from videos collection.`,
+      channelVideosCount: channelVideosTabIds.length,
       newVideos: newCount,
       updatedVideos: updatedCount,
+      removedShorts: removedShortsCount
     });
-  } catch (error) {
+  } catch (error: any) {
     console.error("YouTube sync error:", error);
     return NextResponse.json(
-      { error: "Internal server error" },
+      { error: "Internal server error", details: error?.message || "Unknown error" },
       { status: 500 }
     );
   }
