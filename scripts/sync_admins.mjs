@@ -21,10 +21,25 @@ const app = getApps().length === 0
 const db = getFirestore(app);
 
 const INITIAL_ADMINS = {
+  "akachukwuazogu@gmail.com": {
+    role: "super_admin",
+    title: "Super Admin / Lead Developer",
+    name: "Akachukwu Azogu"
+  },
+  "akachukwuazogu33@gmail.com": {
+    role: "super_admin",
+    title: "Super Admin / Lead Developer",
+    name: "Akachukwu Azogu"
+  },
   "azoguakachukwu@gmail.com": {
     role: "super_admin",
     title: "Super Admin / Lead Developer",
-    name: "Lead Developer"
+    name: "Joseph Azogu"
+  },
+  "josephazogu00@gmail.com": {
+    role: "super_admin",
+    title: "Super Admin / Lead Developer",
+    name: "Joseph Azogu"
   },
   "giantlenspictures@gmail.com": {
     role: "super_admin",

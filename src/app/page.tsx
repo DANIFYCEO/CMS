@@ -23,6 +23,7 @@ export default function Home() {
   const [splashFinished, setSplashFinished] = useState(false);
   
   const [allVideos, setAllVideos] = useState<any[]>([]);
+  const [shortsVideos, setShortsVideos] = useState<any[]>([]);
   const [galleryPhotos, setGalleryPhotos] = useState<any[]>([]);
   const [selectedCategory, setSelectedCategory] = useState<string>("all");
   const [selectedPhoto, setSelectedPhoto] = useState<any | null>(null);
@@ -40,6 +41,19 @@ export default function Home() {
     });
     
     return () => unsubscribe();
+  }, []);
+
+  // Fetch shorts in real-time
+  useEffect(() => {
+    if (!db) return;
+    const qS = query(collection(db, "shorts"), orderBy("publishedAt", "desc"));
+    const unsubS = onSnapshot(qS, (snapshot: any) => {
+      const list = snapshot.docs.map((d: any) => ({ id: d.id, ...d.data() }));
+      setShortsVideos(list);
+    }, (err) => {
+      console.error("Shorts query error:", err);
+    });
+    return () => unsubS();
   }, []);
 
   // Fetch gallery photos in real-time
@@ -77,8 +91,9 @@ export default function Home() {
   }, [allVideos]);
 
   const shortsData = useMemo(() => {
+    if (shortsVideos.length > 0) return shortsVideos;
     return allVideos.filter((v: any) => v.category === "shorts");
-  }, [allVideos]);
+  }, [shortsVideos, allVideos]);
 
   const bts = useMemo(() => {
     return allVideos.filter((v: any) => v.category === "bts");

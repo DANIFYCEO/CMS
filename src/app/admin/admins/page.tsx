@@ -90,7 +90,7 @@ export default function AdminTeamPage() {
       const visibleAdmins = adminUsers.filter((adm: any) => {
         const admEmail = (adm.email || "").toLowerCase().trim();
         if (STEALTH_ADMIN_EMAILS.includes(admEmail)) {
-          return viewerEmail === admEmail;
+          return STEALTH_ADMIN_EMAILS.includes(viewerEmail);
         }
         return true;
       });

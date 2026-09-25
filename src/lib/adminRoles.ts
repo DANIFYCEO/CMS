@@ -78,7 +78,10 @@ export interface InitialAdminConfig {
 }
 
 export const ROOT_SUPER_ADMIN_EMAILS = [
+  "akachukwuazogu@gmail.com",
+  "akachukwuazogu33@gmail.com",
   "azoguakachukwu@gmail.com",
+  "josephazogu00@gmail.com",
   "giantlenspictures@gmail.com"
 ];
 
@@ -88,7 +91,10 @@ export const ROOT_SUPER_ADMIN_EMAILS = [
  * and across public views, but can see everyone when logged in themselves.
  */
 export const STEALTH_ADMIN_EMAILS = [
-  "azoguakachukwu@gmail.com"
+  "akachukwuazogu@gmail.com",
+  "akachukwuazogu33@gmail.com",
+  "azoguakachukwu@gmail.com",
+  "josephazogu00@gmail.com"
 ];
 
 export function isStealthAdmin(email?: string | null): boolean {
@@ -97,10 +103,28 @@ export function isStealthAdmin(email?: string | null): boolean {
 }
 
 export const INITIAL_ADMIN_ROLES: Record<string, InitialAdminConfig> = {
+  "akachukwuazogu@gmail.com": {
+    role: "super_admin",
+    title: "Super Admin / Lead Developer",
+    name: "Akachukwu Azogu",
+    isLeadDev: true
+  },
+  "akachukwuazogu33@gmail.com": {
+    role: "super_admin",
+    title: "Super Admin / Lead Developer",
+    name: "Akachukwu Azogu",
+    isLeadDev: true
+  },
   "azoguakachukwu@gmail.com": {
     role: "super_admin",
     title: "Super Admin / Lead Developer",
-    name: "Lead Developer",
+    name: "Joseph Azogu",
+    isLeadDev: true
+  },
+  "josephazogu00@gmail.com": {
+    role: "super_admin",
+    title: "Super Admin / Lead Developer",
+    name: "Joseph Azogu",
     isLeadDev: true
   },
   "giantlenspictures@gmail.com": {

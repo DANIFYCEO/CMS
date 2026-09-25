@@ -125,12 +125,67 @@ export async function GET(request: NextRequest) {
       }
     }
 
+    // 3. Fetch and sync shorts into Firestore 'shorts' collection
+    let newShortsCount = 0;
+    let updatedShortsCount = 0;
+
+    if (channelShortsTabIds.length > 0) {
+      const shortsParam = channelShortsTabIds.join(",");
+      const ytShortsUrl = `https://www.googleapis.com/youtube/v3/videos?part=snippet,statistics&id=${shortsParam}&key=${YOUTUBE_API_KEY}`;
+      const ytShortsRes = await fetch(ytShortsUrl, { cache: "no-store" });
+
+      if (ytShortsRes.ok) {
+        const ytShortsData = await ytShortsRes.json();
+        const shortItems = ytShortsData.items || [];
+
+        for (const item of shortItems) {
+          const vId = item.id;
+          const title = item.snippet.title;
+          const publishedAt = item.snippet.publishedAt;
+          const thumbnail = item.snippet.thumbnails?.maxres?.url || item.snippet.thumbnails?.high?.url || item.snippet.thumbnails?.default?.url || `https://i.ytimg.com/vi/${vId}/hqdefault.jpg`;
+          const views = parseInt(item.statistics?.viewCount || "0", 10) || 0;
+          const likes = parseInt(item.statistics?.likeCount || "0", 10) || 0;
+          const comments = parseInt(item.statistics?.commentCount || "0", 10) || 0;
+
+          const docRef = adminDb.collection("shorts").doc(vId);
+          const existing = await docRef.get();
+
+          if (!existing.exists) {
+            await docRef.set({
+              videoId: vId,
+              title,
+              category: "shorts",
+              publishedAt,
+              createdAt: new Date().toISOString(),
+              thumbnailUrl: thumbnail,
+              views,
+              likes,
+              comments
+            });
+            newShortsCount++;
+            console.log(`[SYNC] Added channel short: ${vId} => ${title}`);
+          } else {
+            await docRef.update({
+              title,
+              category: "shorts",
+              thumbnailUrl: thumbnail,
+              views
+            });
+            updatedShortsCount++;
+          }
+        }
+      }
+    }
+
     return NextResponse.json({
       success: true,
-      message: `Sync complete. ${channelVideosTabIds.length} channel videos active. ${newCount} added, ${updatedCount} updated, ${removedShortsCount} shorts removed from videos collection.`,
+      message: `Sync complete. ${channelVideosTabIds.length} channel videos and ${channelShortsTabIds.length} shorts active.`,
       channelVideosCount: channelVideosTabIds.length,
+      channelShortsCount: channelShortsTabIds.length,
       newVideos: newCount,
       updatedVideos: updatedCount,
+      newShorts: newShortsCount,
+      updatedShorts: updatedShortsCount,
       removedShorts: removedShortsCount
     });
   } catch (error: any) {

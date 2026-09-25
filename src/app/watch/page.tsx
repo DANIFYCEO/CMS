@@ -178,20 +178,32 @@ function WatchPageContent() {
 
   const onPlayerReady: YouTubeProps['onReady'] = (event) => {
     playerRef.current = event.target;
-    setDuration(event.target.getDuration());
+    try {
+      setDuration(event.target.getDuration());
+    } catch (e) {}
     
     // Resume video progress
     const savedTime = localStorage.getItem(`cms_progress_${videoId}`);
     if (savedTime && parseFloat(savedTime) > 0) {
-      event.target.seekTo(parseFloat(savedTime), true);
+      try {
+        event.target.seekTo(parseFloat(savedTime), true);
+      } catch (e) {}
     }
 
     if (pendingPlayRef.current) {
-      event.target.playVideo();
+      try {
+        event.target.playVideo();
+      } catch (e) {
+        console.warn("Play error on ready:", e);
+      }
       setIsPlaying(true);
       setHasStarted(true);
       pendingPlayRef.current = false;
     }
+  };
+
+  const onPlayerError: YouTubeProps['onError'] = (event) => {
+    console.warn("YouTube Player error event:", event.data);
   };
 
   const onPlayerStateChange: YouTubeProps['onStateChange'] = (event) => {
@@ -235,10 +247,16 @@ function WatchPageContent() {
   const togglePlay = () => {
     if (playerRef.current) {
       if (isPlaying) {
-        playerRef.current.pauseVideo();
+        try {
+          playerRef.current.pauseVideo();
+        } catch (e) {}
         setIsPlaying(false);
       } else {
-        playerRef.current.playVideo();
+        try {
+          playerRef.current.playVideo();
+        } catch (e) {
+          console.warn("togglePlay playVideo error:", e);
+        }
         setIsPlaying(true);
         setHasStarted(true);
       }
@@ -307,7 +325,7 @@ function WatchPageContent() {
     height: '100%',
     width: '100%',
     playerVars: {
-      autoplay: 1,
+      autoplay: 0,
       controls: 0,
       modestbranding: 1,
       rel: 0,
@@ -316,6 +334,8 @@ function WatchPageContent() {
       iv_load_policy: 3,
       disablekb: 1,
       playsinline: 1,
+      enablejsapi: 1,
+      origin: typeof window !== "undefined" ? window.location.origin : undefined,
     },
   };
 
@@ -589,6 +609,7 @@ function WatchPageContent() {
             opts={opts} 
             onReady={onPlayerReady} 
             onStateChange={onPlayerStateChange}
+            onError={onPlayerError}
             className="w-full h-full pointer-events-none select-none"
             iframeClassName="w-full h-full pointer-events-none select-none"
           />

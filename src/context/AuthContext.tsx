@@ -112,6 +112,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
                 updatePayload.membership = "elite-member";
                 needsUpdate = true;
               }
+              if (!data.university) {
+                data.university = "CMS National Secretariat";
+                updatePayload.university = "CMS National Secretariat";
+                needsUpdate = true;
+              }
+              if (!data.username) {
+                const suggested = (currentUser.displayName || currentUser.email?.split("@")[0] || "admin").toLowerCase().replace(/[^a-z0-9_]/g, "");
+                data.username = suggested;
+                updatePayload.username = suggested;
+                needsUpdate = true;
+              }
             } else if (data.isAdmin || (data.role && data.role !== "member")) {
               if (!data.membership || data.membership === "free" || data.membership === "CMS Member") {
                 data.membership = "elite-member";
@@ -130,7 +141,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
               uid: currentUser.uid,
               email: currentUser.email || "",
               displayName: initialConfig?.name || currentUser.displayName || "CMS Member",
-              username: "",
+              username: initialConfig ? (currentUser.displayName || currentUser.email?.split("@")[0] || "admin").toLowerCase().replace(/[^a-z0-9_]/g, "") : "",
+              university: initialConfig ? "CMS National Secretariat" : "",
               isAdmin: !!initialConfig,
               role: initialConfig ? initialConfig.role : "member",
               adminTitle: initialConfig?.title,

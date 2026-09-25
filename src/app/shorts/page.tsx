@@ -1,6 +1,7 @@
 "use client";
 
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, Suspense } from "react";
+import { useSearchParams } from "next/navigation";
 import Link from "next/link";
 import Image from "next/image";
 import BottomNav from "@/components/BottomNav";
@@ -24,8 +25,10 @@ import { cleanTitle, formatCount, timeAgo } from "@/lib/videoUtils";
 import ShareDrawer from "@/components/ShareDrawer";
 import { canModerateCommunity } from "@/lib/adminRoles";
 
-export default function ShortsPage() {
+function ShortsContent() {
   const { user, userData } = useAuth();
+  const searchParams = useSearchParams();
+  const targetVideoId = searchParams.get("v");
   const [isMuted, setIsMuted] = useState(false);
   const [shorts, setShorts] = useState<any[]>([]);
   const [activeShortIndex, setActiveShortIndex] = useState(0);
@@ -103,6 +106,56 @@ export default function ShortsPage() {
       unsubS();
     };
   }, []);
+
+  // Scroll to target video ID if specified in URL query
+  useEffect(() => {
+    if (!targetVideoId || shorts.length === 0 || !containerRef.current) return;
+    const idx = shorts.findIndex(s => s.videoId === targetVideoId || s.id === targetVideoId);
+    if (idx !== -1) {
+      setActiveShortIndex(idx);
+      containerRef.current.scrollTo({
+        top: idx * containerRef.current.clientHeight,
+        behavior: "smooth"
+      });
+    }
+  }, [targetVideoId, shorts]);
+
+  // Handle active short change on scroll
+  const handleScroll = () => {
+    if (!containerRef.current) return;
+    const { scrollTop, clientHeight } = containerRef.current;
+    if (clientHeight === 0) return;
+    const newIndex = Math.round(scrollTop / clientHeight);
+    if (newIndex !== activeShortIndex && newIndex >= 0 && newIndex < shorts.length) {
+      setActiveShortIndex(newIndex);
+    }
+  };
+
+  // Switch playing state when active short index changes
+  useEffect(() => {
+    shorts.forEach((s, idx) => {
+      const p = playerRefs.current[s.videoId];
+      if (p) {
+        try {
+          if (idx === activeShortIndex) {
+            p.playVideo();
+          } else {
+            p.pauseVideo();
+          }
+        } catch (e) {}
+      }
+      const nativeVid = typeof document !== "undefined" ? (document.getElementById(`native-short-${s.videoId}`) as HTMLVideoElement | null) : null;
+      if (nativeVid) {
+        try {
+          if (idx === activeShortIndex) {
+            nativeVid.play().catch(() => {});
+          } else {
+            nativeVid.pause();
+          }
+        } catch (e) {}
+      }
+    });
+  }, [activeShortIndex, shorts]);
 
   // Load saved likes from localStorage
   useEffect(() => {
@@ -447,6 +500,7 @@ export default function ShortsPage() {
       {/* ── Scrollable Shorts Container ── */}
       <div 
         ref={containerRef}
+        onScroll={handleScroll}
         className="flex-1 overflow-y-scroll snap-y snap-mandatory no-scrollbar pb-14"
       >
         {shorts.map((short, idx) => {
@@ -487,15 +541,17 @@ export default function ShortsPage() {
                       width: '100%',
                       height: '100%',
                       playerVars: {
-                        autoplay: 1,
+                        autoplay: idx === activeShortIndex ? 1 : 0,
                         controls: 0,
                         modestbranding: 1,
                         rel: 0,
                         showinfo: 0,
-                        mute: 0,
+                        mute: isMuted ? 1 : 0,
                         loop: 1,
                         playlist: short.videoId,
                         playsinline: 1,
+                        enablejsapi: 1,
+                        origin: typeof window !== "undefined" ? window.location.origin : undefined,
                       },
                     }}
                     className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[140%] h-[120%] pointer-events-none"
@@ -693,5 +749,13 @@ export default function ShortsPage() {
         <BottomNav />
       </div>
     </div>
+  );
+}
+
+export default function ShortsPage() {
+  return (
+    <Suspense fallback={<div className="min-h-screen bg-black flex items-center justify-center text-white/50 text-sm">Loading CMS Shorts...</div>}>
+      <ShortsContent />
+    </Suspense>
   );
 }

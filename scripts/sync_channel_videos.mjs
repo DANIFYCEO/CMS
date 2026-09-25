@@ -126,6 +126,53 @@ async function sync() {
     }
   }
 
+  // 3. Fetch shorts details from YouTube Data API for all shorts on the 'Shorts' tab
+  if (channelShortsTabIds.length > 0 && YOUTUBE_API_KEY) {
+    const idsParam = channelShortsTabIds.join(",");
+    const ytUrl = `https://www.googleapis.com/youtube/v3/videos?part=snippet,contentDetails,statistics&id=${idsParam}&key=${YOUTUBE_API_KEY}`;
+    const ytRes = await fetch(ytUrl);
+    const ytData = await ytRes.json();
+    const items = ytData.items || [];
+
+    console.log(`\nProcessing ${items.length} channel shorts into 'shorts' collection...`);
+
+    for (const item of items) {
+      const vId = item.id;
+      const title = item.snippet.title;
+      const publishedAt = item.snippet.publishedAt;
+      const thumbnail = item.snippet.thumbnails?.maxres?.url || item.snippet.thumbnails?.high?.url || item.snippet.thumbnails?.default?.url || `https://i.ytimg.com/vi/${vId}/hqdefault.jpg`;
+      const views = item.statistics?.viewCount || "0";
+      const likes = item.statistics?.likeCount || "0";
+      const comments = item.statistics?.commentCount || "0";
+
+      const docRef = db.collection("shorts").doc(vId);
+      const existing = await docRef.get();
+
+      if (!existing.exists) {
+        await docRef.set({
+          videoId: vId,
+          title,
+          category: "shorts",
+          publishedAt,
+          createdAt: new Date().toISOString(),
+          thumbnailUrl: thumbnail,
+          views: parseInt(views, 10) || 0,
+          likes: parseInt(likes, 10) || 0,
+          comments: parseInt(comments, 10) || 0
+        });
+        console.log(`✓ Added new short: [${vId}] "${title}"`);
+      } else {
+        await docRef.update({
+          title,
+          category: "shorts",
+          thumbnailUrl: thumbnail,
+          views: parseInt(views, 10) || 0
+        });
+        console.log(`✓ Updated existing short: [${vId}] "${title}"`);
+      }
+    }
+  }
+
   console.log("\nSync completed successfully!");
   process.exit(0);
 }
